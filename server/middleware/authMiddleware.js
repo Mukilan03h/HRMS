@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 
-// IMPORTANT: Use the same secret key as in auth.js
-const JWT_SECRET = 'your_jwt_secret_key';
+// JWT Secret from environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Middleware to verify token
 function auth(req, res, next) {
@@ -15,7 +15,7 @@ function auth(req, res, next) {
 
   try {
     // Verify token
-    const decoded = jwt.verify(token, JWT_SECRET);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
     // Add user from payload
     req.user = decoded.user;
     next();

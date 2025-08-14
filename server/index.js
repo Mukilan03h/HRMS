@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -14,9 +15,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // MongoDB Connection
 // IMPORTANT: Replace with your actual MongoDB connection string.
-const MONGO_URI = process.env.MONGO_URI || 'mongodb://localhost:27017/hrm_solution';
-
-mongoose.connect(MONGO_URI)
+mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('MongoDB connected successfully.'))
   .catch(err => console.error('MongoDB connection error:', err));
 

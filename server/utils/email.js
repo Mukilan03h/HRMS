@@ -1,41 +1,37 @@
-const nodemailer = require('nodemailer');
+const axios = require('axios');
+const FormData = require('form-data');
 
-// This function will configure and send an email.
-// It uses a test account from Ethereal.email.
 const sendEmail = async (options) => {
-  // 1) Create a transporter using a test account
-  // In a real app, you'd use your actual SMTP server details
-  let testAccount = await nodemailer.createTestAccount();
+  const { email, subject, message, html } = options;
 
-  const transporter = nodemailer.createTransport({
-    host: 'smtp.ethereal.email',
-    port: 587,
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: testAccount.user, // generated ethereal user
-      pass: testAccount.pass, // generated ethereal password
-    },
-  });
+  const formData = new FormData();
+  formData.append('to', email);
+  formData.append('subject', subject);
+  if (message) {
+    formData.append('message', message);
+  }
+  if (html) {
+    formData.append('html', html);
+  }
 
-  // 2) Define the email options
-  const mailOptions = {
-    from: '"HRM Solution" <no-reply@hrm-solution.com>',
-    to: options.email,
-    subject: options.subject,
-    text: options.message,
-    // html: can be used for formatted emails
-  };
-
-  // 3) Actually send the email
   try {
-    const info = await transporter.sendMail(mailOptions);
-    console.log('Message sent: %s', info.messageId);
-    // Preview only available when sending through an Ethereal account
-    console.log('Preview URL: %s', nodemailer.getTestMessageUrl(info));
-    return { success: true, previewUrl: nodemailer.getTestMessageUrl(info) };
+    const response = await axios.post(
+      process.env.EMAIL_API_URL,
+      formData,
+      {
+        headers: {
+          ...formData.getHeaders(),
+          'x-api-key': process.env.EMAIL_API_KEY,
+        },
+      }
+    );
+
+    console.log('Email sent successfully via custom API:', response.data);
+    return response.data;
   } catch (error) {
-    console.error('Error sending email:', error);
-    throw new Error('Email could not be sent');
+    console.error('Error sending email via custom API:', error.response ? error.response.data : error.message);
+    // To keep the application from crashing, we don't re-throw the error,
+    // but the failure is logged.
   }
 };
 

@@ -5,8 +5,8 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const { auth } = require('../middleware/authMiddleware');
 
-// IMPORTANT: Move this to a .env file in a real application
-const JWT_SECRET = 'your_jwt_secret_key';
+// JWT Secret from environment variables
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // @route   POST /api/auth/register
 // @desc    Register a new user
@@ -43,7 +43,7 @@ router.post('/register', async (req, res) => {
     // Sign and return JWT
     jwt.sign(
       payload,
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: '5h' }, // Token expires in 5 hours
       (err, token) => {
         if (err) throw err;
@@ -86,7 +86,7 @@ router.post('/login', async (req, res) => {
     // Sign and return JWT
     jwt.sign(
       payload,
-      JWT_SECRET,
+      process.env.JWT_SECRET,
       { expiresIn: '5h' },
       (err, token) => {
         if (err) throw err;
