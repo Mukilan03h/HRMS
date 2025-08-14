@@ -1,6 +1,7 @@
 import { useState, useEffect, useContext } from 'react';
 import axios from 'axios';
 import { AuthContext } from '../context/AuthContext';
+import ApplicationDetailsModal from '../components/ApplicationDetailsModal';
 import {
   Container,
   Typography,
@@ -25,12 +26,44 @@ function AdminDashboardPage() {
   const [mainTab, setMainTab] = useState(0);
   const [subTab, setSubTab] = useState(0);
   const { user } = useContext(AuthContext);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedApplication, setSelectedApplication] = useState(null);
+
+  const handleOpenModal = (application) => {
+    setSelectedApplication(application);
+    setIsModalOpen(true);
+  };
+
+  const handleCloseModal = () => {
+    setSelectedApplication(null);
+    setIsModalOpen(false);
+  };
 
   const fetchData = async () => {
     switch (mainTab) {
-        case 0: // Onboarding
-            // ... (existing code)
+        case 0: { // Onboarding
+            let statusToFetch = '';
+            if (user.role === 'Admin') {
+                statusToFetch = subTab === 0 ? 'PendingAdmin' : 'Rejected';
+            } else if (user.role === 'SuperAdmin') {
+                if (subTab === 0) statusToFetch = 'PendingSuperAdmin';
+                else if (subTab === 1) statusToFetch = 'Approved';
+                else statusToFetch = 'Rejected';
+            }
+
+            if (statusToFetch) {
+                try {
+                    const res = await axios.get(`/api/admin/applications?status=${statusToFetch}`);
+                    setApplications(res.data);
+                } catch (err) {
+                    console.error(`Failed to fetch ${statusToFetch} applications`, err);
+                    setApplications([]);
+                }
+            } else {
+                setApplications([]);
+            }
             break;
+        }
         case 1: // On-Duty
             // ... (existing code)
             break;
@@ -139,11 +172,17 @@ function AdminDashboardPage() {
               <TableCell>{app.contact.email}</TableCell>
               <TableCell>{new Date(app.createdAt).toLocaleDateString()}</TableCell>
               <TableCell>
-                {app.status.startsWith('Pending') && (
-                  <Box><Button variant="contained" color="success" sx={{ mr: 1 }} onClick={() => handleApproveOnboarding(app._id)}>Approve</Button><Button variant="contained" color="error" onClick={() => handleRejectOnboarding(app._id)}>Reject</Button></Box>
-                )}
-                {app.status === 'Rejected' && <Typography color="error">Rejected: {app.rejectionReason}</Typography>}
-                {app.status === 'Approved' && <Typography color="success">Approved</Typography>}
+                <Box sx={{ display: 'flex', gap: 1 }}>
+                  <Button variant="outlined" size="small" onClick={() => handleOpenModal(app)}>View</Button>
+                  {app.status.startsWith('Pending') && (
+                    <>
+                      <Button variant="contained" color="success" size="small" onClick={() => handleApproveOnboarding(app._id)}>Approve</Button>
+                      <Button variant="contained" color="error" size="small" onClick={() => handleRejectOnboarding(app._id)}>Reject</Button>
+                    </>
+                  )}
+                </Box>
+                {app.status === 'Rejected' && <Typography color="error" variant="body2" sx={{ mt: 1 }}>Rejected: {app.rejectionReason}</Typography>}
+                {app.status === 'Approved' && <Typography color="success" variant="body2" sx={{ mt: 1 }}>Approved</Typography>}
               </TableCell>
             </TableRow>
           ))}
@@ -236,6 +275,12 @@ function AdminDashboardPage() {
       )}
 
       {renderContent()}
+
+      <ApplicationDetailsModal
+        application={selectedApplication}
+        open={isModalOpen}
+        onClose={handleCloseModal}
+      />
     </Container>
   );
 }

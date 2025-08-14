@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const OnboardingApplication = require('../models/OnboardingApplication');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/authMiddleware');
@@ -47,15 +48,28 @@ router.post(
 
       if (userRole === 'SuperAdmin' && application.status === 'PendingSuperAdmin') {
         // Final approval: Create user account
-        const { personal, contact } = application;
-        const tempPassword = 'Welcome123'; // In a real app, generate a random one
+        const { personal, contact, bank, emergency, documents } = application;
+        const tempPassword = crypto.randomBytes(8).toString('hex');
 
         const newUser = new User({
-          name: `${personal.firstName} ${personal.lastName}`,
+          // Login & Role
           email: contact.email,
           password: tempPassword,
           role: 'Employee',
           passwordChangeRequired: true,
+          // Personal Details
+          personal,
+          // Contact Details (email is top-level)
+          contact: {
+            phone: contact.phone,
+            address: contact.address,
+          },
+          // Bank Details
+          bank,
+          // Emergency Contact
+          emergency,
+          // Document Uploads
+          documents,
         });
         await newUser.save();
 
@@ -114,8 +128,8 @@ router.post(
       try {
         await sendEmail({
           email: application.contact.email,
-          subject: 'Action Required: Complete Your Onboarding Form',
-          message: `Your onboarding application has been reviewed, but it requires corrections. The reason provided was: "${reason}". Please contact HR to correct and resubmit.`,
+          subject: 'Update on Your Onboarding Application',
+          message: `Your onboarding application has been reviewed, but could not be approved at this time. The reason provided was: "${reason}".\n\nPlease submit a new application with the corrected information. We apologize for the inconvenience.`,
         });
       } catch (emailError) {
           console.error('Failed to send rejection email:', emailError);

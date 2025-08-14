@@ -2,10 +2,7 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const UserSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-  },
+  // Login & Role
   email: {
     type: String,
     required: true,
@@ -21,16 +18,37 @@ const UserSchema = new mongoose.Schema({
     enum: ['Employee', 'Admin', 'SuperAdmin', 'SiteGM', 'HRAccounts'],
     default: 'Employee',
   },
-  // Add other fields from onboarding form later
-  onboardingStatus: {
-    type: String,
-    enum: ['Pending', 'Approved', 'Rejected'],
-    default: 'Pending',
-  },
   passwordChangeRequired: {
     type: Boolean,
     default: false,
-  }
+  },
+  // Personal Details
+  personal: {
+    firstName: { type: String, required: true },
+    lastName: { type: String, required: true },
+    dateOfBirth: { type: Date, required: true },
+  },
+  // Contact Details
+  contact: {
+    phone: { type: String, required: true },
+    address: { type: String, required: true },
+  },
+  // Bank Details
+  bank: {
+    accountNumber: { type: String, required: true },
+    ifscCode: { type: String, required: true },
+  },
+  // Emergency Contact
+  emergency: {
+    name: { type: String, required: true },
+    relationship: { type: String, required: true },
+    phone: { type: String, required: true },
+  },
+  // Document Uploads
+  documents: {
+    idProof: { type: String }, // Path to the uploaded file
+    addressProof: { type: String }, // Path to the uploaded file
+  },
 }, {
   timestamps: true,
 });

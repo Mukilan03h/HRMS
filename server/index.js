@@ -13,6 +13,9 @@ app.use(morgan('dev'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// Serve uploaded files statically
+app.use('/uploads', express.static('uploads'));
+
 // MongoDB Connection
 // IMPORTANT: Replace with your actual MongoDB connection string.
 mongoose.connect(process.env.MONGO_URI)
