@@ -3,15 +3,16 @@ const router = express.Router();
 const crypto = require('crypto');
 const OnboardingApplication = require('../models/OnboardingApplication');
 const User = require('../models/User');
-const { auth, authorize } = require('../middleware/authMiddleware');
+const { auth, checkPermission } = require('../middleware/authMiddleware');
 const sendEmail = require('../utils/email');
+const Role = require('../models/Role');
 
 // @route   GET /api/admin/applications
 // @desc    Get all onboarding applications based on status
-// @access  Private (Admin, SuperAdmin)
+// @access  Private (requires 'onboarding:read' permission)
 router.get(
   '/applications',
-  [auth, authorize(['Admin', 'SuperAdmin'])],
+  [auth, checkPermission('onboarding:read')],
   async (req, res) => {
     try {
       const { status } = req.query;
@@ -27,10 +28,10 @@ router.get(
 
 // @route   POST /api/admin/applications/:id/approve
 // @desc    Approve an onboarding application
-// @access  Private (Admin, SuperAdmin)
+// @access  Private (requires 'onboarding:approve' permission)
 router.post(
   '/applications/:id/approve',
-  [auth, authorize(['Admin', 'SuperAdmin'])],
+  [auth, checkPermission('onboarding:approve')],
   async (req, res) => {
     try {
       const application = await OnboardingApplication.findById(req.params.id);
@@ -38,37 +39,34 @@ router.post(
         return res.status(404).json({ msg: 'Application not found' });
       }
 
-      const userRole = req.user.role;
+      const userRoleName = req.user.role.name;
 
-      if (userRole === 'Admin' && application.status === 'PendingAdmin') {
+      // Admin-level approval (first step)
+      if (userRoleName === 'Admin' && application.status === 'PendingAdmin') {
         application.status = 'PendingSuperAdmin';
         await application.save();
         return res.json(application);
       }
 
-      if (userRole === 'SuperAdmin' && application.status === 'PendingSuperAdmin') {
-        // Final approval: Create user account
+      // SuperAdmin-level approval (final step)
+      if (userRoleName === 'SuperAdmin' && application.status === 'PendingSuperAdmin') {
         const { personal, contact, bank, emergency, documents } = application;
         const tempPassword = crypto.randomBytes(8).toString('hex');
 
+        const employeeRole = await Role.findOne({ name: 'Employee' });
+        if (!employeeRole) {
+          return res.status(500).json({ msg: 'Default "Employee" role not found. Please create it.' });
+        }
+
         const newUser = new User({
-          // Login & Role
           email: contact.email,
           password: tempPassword,
-          role: 'Employee',
+          role: employeeRole._id,
           passwordChangeRequired: true,
-          // Personal Details
           personal,
-          // Contact Details (email is top-level)
-          contact: {
-            phone: contact.phone,
-            address: contact.address,
-          },
-          // Bank Details
+          contact: { phone: contact.phone, address: contact.address },
           bank,
-          // Emergency Contact
           emergency,
-          // Document Uploads
           documents,
         });
         await newUser.save();
@@ -103,10 +101,10 @@ router.post(
 
 // @route   POST /api/admin/applications/:id/reject
 // @desc    Reject an onboarding application
-// @access  Private (Admin, SuperAdmin)
+// @access  Private (requires 'onboarding:reject' permission)
 router.post(
   '/applications/:id/reject',
-  [auth, authorize(['Admin', 'SuperAdmin'])],
+  [auth, checkPermission('onboarding:reject')],
   async (req, res) => {
     try {
       const { reason } = req.body;

@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { auth, authorize } = require('../middleware/authMiddleware');
+const { auth, checkPermission } = require('../middleware/authMiddleware');
 const OnDutyLog = require('../models/OnDutyLog');
 
 // @route   POST /api/onduty/request
 // @desc    Submit an On-Duty request
-// @access  Private (Employee)
-router.post('/request', [auth, authorize('Employee')], async (req, res) => {
+// @access  Private (requires 'onduty:create' permission)
+router.post('/request', [auth, checkPermission('onduty:create')], async (req, res) => {
   const { clientName, purpose, date, startTime, endTime, latitude, longitude } = req.body;
 
   if (!clientName || !purpose || !date) {
@@ -37,8 +37,8 @@ router.post('/request', [auth, authorize('Employee')], async (req, res) => {
 
 // @route   GET /api/onduty/requests
 // @desc    Get all On-Duty requests (for admins)
-// @access  Private (Admin, SuperAdmin, SiteGM)
-router.get('/requests', [auth, authorize(['Admin', 'SuperAdmin', 'SiteGM'])], async (req, res) => {
+// @access  Private (requires 'onduty:read' permission)
+router.get('/requests', [auth, checkPermission('onduty:read')], async (req, res) => {
     try {
         const requests = await OnDutyLog.find().populate('user', 'name').sort({ createdAt: -1 });
         res.json(requests);
@@ -50,8 +50,8 @@ router.get('/requests', [auth, authorize(['Admin', 'SuperAdmin', 'SiteGM'])], as
 
 // @route   POST /api/onduty/:id/approve
 // @desc    Approve an On-Duty request
-// @access  Private (Admin, SuperAdmin, SiteGM)
-router.post('/:id/approve', [auth, authorize(['Admin', 'SuperAdmin', 'SiteGM'])], async (req, res) => {
+// @access  Private (requires 'onduty:approve' permission)
+router.post('/:id/approve', [auth, checkPermission('onduty:approve')], async (req, res) => {
     try {
         const log = await OnDutyLog.findByIdAndUpdate(
             req.params.id,
@@ -69,7 +69,7 @@ router.post('/:id/approve', [auth, authorize(['Admin', 'SuperAdmin', 'SiteGM'])]
 });
 
 // Add a reject route as well for completeness
-router.post('/:id/reject', [auth, authorize(['Admin', 'SuperAdmin', 'SiteGM'])], async (req, res) => {
+router.post('/:id/reject', [auth, checkPermission('onduty:approve')], async (req, res) => {
     try {
         const log = await OnDutyLog.findByIdAndUpdate(
             req.params.id,

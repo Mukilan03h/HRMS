@@ -14,9 +14,8 @@ const UserSchema = new mongoose.Schema({
     required: true,
   },
   role: {
-    type: String,
-    enum: ['Employee', 'Admin', 'SuperAdmin', 'SiteGM', 'HRAccounts'],
-    default: 'Employee',
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Role',
   },
   passwordChangeRequired: {
     type: Boolean,

@@ -1,13 +1,13 @@
 const express = require('express');
 const router = express.Router();
-const { auth, authorize } = require('../middleware/authMiddleware');
+const { auth } = require('../middleware/authMiddleware');
 const User = require('../models/User');
 const OnboardingApplication = require('../models/OnboardingApplication');
 
 // @route   GET /api/employee/me
 // @desc    Get current user's profile and onboarding status
-// @access  Private (Employee)
-router.get('/me', [auth, authorize('Employee')], async (req, res) => {
+// @access  Private (Authenticated Users)
+router.get('/me', auth, async (req, res) => {
   try {
     // 1. Get the user's profile
     // We select '-password' to exclude the password hash from the response

@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const multer = require('multer');
 const path = require('path');
-const { auth, authorize } = require('../middleware/authMiddleware');
+const { auth, checkPermission } = require('../middleware/authMiddleware');
 const Attendance = require('../models/Attendance');
-const moment = require('moment'); // Will need to install moment.js
+const moment = require('moment');
 
 // --- Multer Configuration for Selfies ---
 const storage = multer.diskStorage({
@@ -32,8 +32,8 @@ const upload = multer({
 
 // @route   POST /api/attendance/check-in
 // @desc    Employee checks in for the day
-// @access  Private (Employee)
-router.post('/check-in', [auth, authorize('Employee')], (req, res) => {
+// @access  Private (requires 'attendance:create' permission)
+router.post('/check-in', [auth, checkPermission('attendance:create')], (req, res) => {
   upload(req, res, async (err) => {
     if (err) {
       return res.status(400).json({ msg: err });
@@ -87,8 +87,8 @@ router.post('/check-in', [auth, authorize('Employee')], (req, res) => {
 
 // @route   POST /api/attendance/check-out
 // @desc    Employee checks out for the day
-// @access  Private (Employee)
-router.post('/check-out', [auth, authorize('Employee')], (req, res) => {
+// @access  Private (requires 'attendance:create' permission)
+router.post('/check-out', [auth, checkPermission('attendance:create')], (req, res) => {
     upload(req, res, async (err) => {
         if (err) { return res.status(400).json({ msg: err }); }
         if (req.file === undefined) { return res.status(400).json({ msg: 'Error: No selfie image uploaded.' }); }

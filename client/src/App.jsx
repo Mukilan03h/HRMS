@@ -11,12 +11,14 @@ import OnDutyPage from './pages/OnDutyPage';
 import LoanPage from './pages/LoanPage';
 import PayslipPage from './pages/PayslipPage';
 import ChangePasswordPage from './pages/ChangePasswordPage';
+import RoleManagementPage from './pages/RoleManagementPage';
+import UserManagementPage from './pages/UserManagementPage';
 import ProtectedRoute from './components/ProtectedRoute';
 import PasswordEnforcer from './components/PasswordEnforcer';
 import { AppBar, Toolbar, Typography, Button, Container, Box } from '@mui/material';
 
 function App() {
-  const { isAuthenticated, user, logout } = useContext(AuthContext);
+  const { isAuthenticated, user, logout, hasPermission } = useContext(AuthContext);
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -37,10 +39,16 @@ function App() {
           {isAuthenticated ? (
             <Box>
               {/* Add dashboard links based on role */}
-              {(user?.role === 'Admin' || user?.role === 'SuperAdmin') && (
+              {(user?.role?.name === 'Admin' || user?.role?.name === 'SuperAdmin') && (
                 <Button color="inherit" component={Link} to="/admin/dashboard">Admin Dashboard</Button>
               )}
-              {user?.role === 'Employee' && (
+              {hasPermission('role:manage') && (
+                 <Button color="inherit" component={Link} to="/admin/roles">Role Management</Button>
+              )}
+              {hasPermission('user:read') && (
+                 <Button color="inherit" component={Link} to="/admin/users">User Management</Button>
+              )}
+              {user?.role?.name === 'Employee' && (
                 <>
                   <Button color="inherit" component={Link} to="/dashboard">My Dashboard</Button>
                   <Button color="inherit" component={Link} to="/attendance">Attendance</Button>
@@ -65,6 +73,8 @@ function App() {
           {/* Protected Admin Routes */}
           <Route element={<ProtectedRoute roles={['Admin', 'SuperAdmin']} />}>
             <Route path="/admin/dashboard" element={<AdminDashboardPage />} />
+            <Route path="/admin/roles" element={<RoleManagementPage />} />
+            <Route path="/admin/users" element={<UserManagementPage />} />
           </Route>
 
           {/* Protected Employee Routes */}

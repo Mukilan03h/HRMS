@@ -36,6 +36,7 @@ app.use('/api/attendance', require('./routes/attendance'));
 app.use('/api/onduty', require('./routes/onduty'));
 app.use('/api/loan', require('./routes/loan'));
 app.use('/api/payroll', require('./routes/payroll'));
+app.use('/api/superadmin', require('./routes/superadmin'));
 
 // Protected test route
 const { auth } = require('./middleware/authMiddleware');

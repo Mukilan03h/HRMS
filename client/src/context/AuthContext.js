@@ -34,35 +34,36 @@ export const AuthContext = createContext();
 export const AuthProvider = ({ children }) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
-  useEffect(() => {
-    // Check for token in local storage on initial load
+  const loadUser = async () => {
     const token = localStorage.getItem('token');
     if (token) {
+      setAuthToken(token);
       try {
-        const decodedUser = jwtDecode(token);
-        // Check if token is expired
-        if (decodedUser.exp * 1000 < Date.now()) {
+        const decoded = jwtDecode(token);
+        if (decoded.exp * 1000 < Date.now()) {
+          // Token expired
           localStorage.removeItem('token');
-        } else {
-          dispatch({ type: 'LOGIN', payload: { user: decodedUser.user, token } });
-          setAuthToken(token);
+          return;
         }
-      } catch (error) {
+        // Fetch full user data
+        const userRes = await axios.get('/api/employee/me');
+        dispatch({ type: 'LOGIN', payload: { user: userRes.data.profile, token } });
+      } catch (err) {
+        // Invalid token or other error
         localStorage.removeItem('token');
       }
     }
+  };
+
+  useEffect(() => {
+    loadUser();
   }, []);
 
   const login = async (email, password) => {
     const res = await axios.post('/api/auth/login', { email, password });
     const { token } = res.data;
     localStorage.setItem('token', token);
-    const decodedUser = jwtDecode(token);
-    dispatch({
-      type: 'LOGIN',
-      payload: { user: decodedUser.user, token },
-    });
-    setAuthToken(token);
+    await loadUser(); // Load user data after setting token
   };
 
   const logout = () => {
@@ -71,12 +72,21 @@ export const AuthProvider = ({ children }) => {
     setAuthToken(null);
   };
 
+  const hasPermission = (requiredPermission) => {
+    if (!state.user || !state.user.role || !Array.isArray(state.user.role.permissions)) {
+      return false;
+    }
+    const userPermissions = state.user.role.permissions.map(p => p.name);
+    return userPermissions.includes(requiredPermission);
+  };
+
   return (
     <AuthContext.Provider
       value={{
         ...state,
         login,
         logout,
+        hasPermission,
       }}
     >
       {children}

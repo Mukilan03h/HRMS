@@ -1,12 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const { auth, authorize } = require('../middleware/authMiddleware');
+const { auth, checkPermission } = require('../middleware/authMiddleware');
 const LoanRequest = require('../models/LoanRequest');
 
 // @route   POST /api/loan/request
 // @desc    Submit a loan request
-// @access  Private (Employee)
-router.post('/request', [auth, authorize('Employee')], async (req, res) => {
+// @access  Private (requires 'loan:create' permission)
+router.post('/request', [auth, checkPermission('loan:create')], async (req, res) => {
   const { amount, reason } = req.body;
 
   if (!amount || !reason || amount <= 0) {
@@ -30,8 +30,8 @@ router.post('/request', [auth, authorize('Employee')], async (req, res) => {
 
 // @route   GET /api/loan/requests
 // @desc    Get all loan requests (for SiteGMs)
-// @access  Private (SiteGM, Admin, SuperAdmin)
-router.get('/requests', [auth, authorize(['SiteGM', 'Admin', 'SuperAdmin'])], async (req, res) => {
+// @access  Private (requires 'loan:read' permission)
+router.get('/requests', [auth, checkPermission('loan:read')], async (req, res) => {
     try {
         const requests = await LoanRequest.find().populate('user', 'name').sort({ createdAt: -1 });
         res.json(requests);
@@ -43,8 +43,8 @@ router.get('/requests', [auth, authorize(['SiteGM', 'Admin', 'SuperAdmin'])], as
 
 // @route   POST /api/loan/:id/approve
 // @desc    Approve a loan request
-// @access  Private (SiteGM)
-router.post('/:id/approve', [auth, authorize(['SiteGM', 'Admin', 'SuperAdmin'])], async (req, res) => {
+// @access  Private (requires 'loan:approve' permission)
+router.post('/:id/approve', [auth, checkPermission('loan:approve')], async (req, res) => {
     try {
         // In a real app, repayment logic would be more complex
         const repaymentSchedule = [
@@ -68,8 +68,8 @@ router.post('/:id/approve', [auth, authorize(['SiteGM', 'Admin', 'SuperAdmin'])]
 
 // @route   POST /api/loan/:id/reject
 // @desc    Reject a loan request
-// @access  Private (SiteGM)
-router.post('/:id/reject', [auth, authorize(['SiteGM', 'Admin', 'SuperAdmin'])], async (req, res) => {
+// @access  Private (requires 'loan:approve' permission)
+router.post('/:id/reject', [auth, checkPermission('loan:approve')], async (req, res) => {
     const { reason } = req.body;
     if (!reason) {
         return res.status(400).json({ msg: 'Rejection reason is required.' });

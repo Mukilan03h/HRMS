@@ -1,50 +1,58 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 
-// JWT Secret from environment variables
-const JWT_SECRET = process.env.JWT_SECRET;
-
-// Middleware to verify token
-function auth(req, res, next) {
-  // Get token from header
+// Middleware to verify token and attach user with permissions
+async function auth(req, res, next) {
   const token = req.header('x-auth-token');
-
-  // Check if not token
   if (!token) {
     return res.status(401).json({ msg: 'No token, authorization denied' });
   }
 
   try {
-    // Verify token
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // Add user from payload
-    req.user = decoded.user;
+
+    // Fetch the user and populate their role with its permissions
+    const user = await User.findById(decoded.user.id).populate({
+      path: 'role',
+      populate: {
+        path: 'permissions',
+        model: 'Permission'
+      }
+    }).select('-password');
+
+    if (!user) {
+        return res.status(401).json({ msg: 'Authorization denied, user not found.' });
+    }
+
+    req.user = user;
     next();
   } catch (e) {
     res.status(400).json({ msg: 'Token is not valid' });
   }
 }
 
-// Middleware to check for specific roles
-function authorize(roles = []) {
-    // roles param can be a single role string (e.g., 'Admin')
-    // or an array of roles (e.g., ['Admin', 'SuperAdmin'])
-    if (typeof roles === 'string') {
-        roles = [roles];
-    }
-
+// New middleware to check for a specific permission
+function checkPermission(requiredPermission) {
     return (req, res, next) => {
-        if (!req.user || (roles.length && !roles.includes(req.user.role))) {
-            // user's role is not authorized
-            return res.status(403).json({ msg: 'Forbidden: You do not have the required role.' });
+        // The `auth` middleware should have already run and attached the user object.
+        // We expect `req.user.role.permissions` to be an array of Permission documents.
+        if (!req.user || !req.user.role || !Array.isArray(req.user.role.permissions)) {
+            return res.status(403).json({ msg: 'Forbidden: User role and permissions are not defined.' });
         }
 
-        // authentication and authorization successful
-        next();
+        const userPermissions = req.user.role.permissions.map(p => p.name);
+
+        if (userPermissions.includes(requiredPermission)) {
+            // User has the required permission, proceed to the next middleware/route handler
+            return next();
+        } else {
+            // User does not have the required permission
+            return res.status(403).json({ msg: 'Forbidden: You do not have the required permission.' });
+        }
     };
 }
 
-
 module.exports = {
     auth,
-    authorize
+    checkPermission
 };

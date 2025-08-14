@@ -16,7 +16,7 @@ const ProtectedRoute = ({ roles }) => {
   }
 
   // Check if route has role restrictions
-  if (roles && roles.length > 0 && !roles.includes(user?.role)) {
+  if (roles && roles.length > 0 && !roles.includes(user?.role?.name)) {
     // user's role is not authorized
     return <Navigate to="/" replace />; // Or to a specific '/unauthorized' page
   }
