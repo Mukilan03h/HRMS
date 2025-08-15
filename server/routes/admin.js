@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const OnboardingApplication = require('../models/OnboardingApplication');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/authMiddleware');
@@ -48,7 +49,7 @@ router.post(
       if (userRole === 'SuperAdmin' && application.status === 'PendingSuperAdmin') {
         // Final approval: Create user account
         const { personal, contact } = application;
-        const tempPassword = 'Welcome123'; // In a real app, generate a random one
+        const tempPassword = crypto.randomBytes(8).toString('hex');
 
         const newUser = new User({
           name: `${personal.firstName} ${personal.lastName}`,
