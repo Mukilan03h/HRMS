@@ -14,7 +14,15 @@ import {
   Button,
   Box,
   Tabs,
-  Tab
+  Tab,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Grid,
+  Link,
+  CircularProgress
 } from '@mui/material';
 
 function AdminDashboardPage() {
@@ -25,27 +33,66 @@ function AdminDashboardPage() {
   const [mainTab, setMainTab] = useState(0);
   const [subTab, setSubTab] = useState(0);
   const { user } = useContext(AuthContext);
+  const [loading, setLoading] = useState(false);
+
+  // State for dialogs
+  const [selectedApp, setSelectedApp] = useState(null);
+  const [isDetailOpen, setIsDetailOpen] = useState(false);
+  const [isRejectOpen, setIsRejectOpen] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState('');
+
+  const getStatusForTab = () => {
+    const role = user?.role;
+    if (mainTab !== 0) return '';
+
+    if (role === 'Admin') {
+        switch (subTab) {
+            case 0: return 'PendingAdmin';
+            case 1: return 'Rejected';
+            default: return '';
+        }
+    }
+    if (role === 'SuperAdmin') {
+        switch (subTab) {
+            case 0: return 'PendingSuperAdmin';
+            case 1: return 'Approved';
+            case 2: return 'Rejected';
+            default: return '';
+        }
+    }
+    return '';
+  };
 
   const fetchData = async () => {
-    switch (mainTab) {
-        case 0: // Onboarding
-            // ... (existing code)
-            break;
-        case 1: // On-Duty
-            // ... (existing code)
-            break;
-        case 2: // Loans
-            // ... (existing code)
-            break;
-        case 3: // Payroll
-            try {
+    if (!user) return;
+    setLoading(true);
+    try {
+        switch (mainTab) {
+            case 0: // Onboarding
+                const status = getStatusForTab();
+                if (status) {
+                    const res = await axios.get(`/api/admin/applications?status=${status}`);
+                    setApplications(res.data);
+                }
+                break;
+            case 1: // On-Duty
+                // TODO: Implement On-Duty fetch
+                break;
+            case 2: // Loans
+                // TODO: Implement Loans fetch
+                break;
+            case 3: // Payroll
                 const today = new Date();
                 const res = await axios.get(`/api/payroll/payslips?year=${today.getFullYear()}&month=${today.getMonth() + 1}`);
                 setPayslips(res.data);
-            } catch (err) { console.error('Failed to fetch payslips', err); }
-            break;
-        default:
-            break;
+                break;
+            default:
+                break;
+        }
+    } catch (err) {
+        console.error('Failed to fetch data', err);
+    } finally {
+        setLoading(false);
     }
   };
 
@@ -55,21 +102,39 @@ function AdminDashboardPage() {
     }
   }, [user, mainTab, subTab]);
 
-  const handleApproveOnboarding = async (id) => {
+  const handleOpenDetail = (app) => {
+    setSelectedApp(app);
+    setIsDetailOpen(true);
+  };
+  const handleCloseDetail = () => setIsDetailOpen(false);
+  const handleOpenReject = () => {
+    setIsRejectOpen(true);
+  };
+  const handleCloseReject = () => {
+    setIsRejectOpen(false);
+  };
+
+  const handleApproveOnboarding = async () => {
+    if (!selectedApp) return;
     try {
-      await axios.post(`/api/admin/applications/${id}/approve`);
+      await axios.post(`/api/admin/applications/${selectedApp._id}/approve`);
       fetchData();
+      handleCloseDetail();
     } catch (err) { alert('Failed to approve application: ' + err.response?.data?.msg); }
   };
 
-  const handleRejectOnboarding = async (id) => {
-    const reason = prompt('Please enter the reason for rejection:');
-    if (reason) {
-      try {
-        await axios.post(`/api/admin/applications/${id}/reject`, { reason });
-        fetchData();
-      } catch (err) { alert('Failed to reject application: ' + err.response?.data?.msg); }
+  const handleRejectOnboarding = async () => {
+    if (!selectedApp || !rejectionReason) {
+        alert('Rejection reason is required.');
+        return;
     }
+    try {
+      await axios.post(`/api/admin/applications/${selectedApp._id}/reject`, { reason: rejectionReason });
+      setRejectionReason('');
+      fetchData();
+      handleCloseReject();
+      handleCloseDetail();
+    } catch (err) { alert('Failed to reject application: ' + err.response?.data?.msg); }
   };
 
   const handleApproveOD = async (id) => {
@@ -131,20 +196,16 @@ function AdminDashboardPage() {
   const renderOnboardingTable = () => (
     <TableContainer component={Paper} sx={{ mt: 2 }}>
       <Table>
-        <TableHead><TableRow><TableCell>Name</TableCell><TableCell>Email</TableCell><TableCell>Submitted At</TableCell><TableCell>Actions</TableCell></TableRow></TableHead>
+        <TableHead><TableRow><TableCell>Name</TableCell><TableCell>Email</TableCell><TableCell>Status</TableCell><TableCell>Submitted At</TableCell></TableRow></TableHead>
         <TableBody>
-          {applications.map((app) => (
-            <TableRow key={app._id}>
+          {loading ? (
+            <TableRow><TableCell colSpan={4} align="center"><CircularProgress /></TableCell></TableRow>
+          ) : applications.map((app) => (
+            <TableRow key={app._id} hover onClick={() => handleOpenDetail(app)} sx={{ cursor: 'pointer' }}>
               <TableCell>{app.personal.firstName} {app.personal.lastName}</TableCell>
               <TableCell>{app.contact.email}</TableCell>
+              <TableCell>{app.status}</TableCell>
               <TableCell>{new Date(app.createdAt).toLocaleDateString()}</TableCell>
-              <TableCell>
-                {app.status.startsWith('Pending') && (
-                  <Box><Button variant="contained" color="success" sx={{ mr: 1 }} onClick={() => handleApproveOnboarding(app._id)}>Approve</Button><Button variant="contained" color="error" onClick={() => handleRejectOnboarding(app._id)}>Reject</Button></Box>
-                )}
-                {app.status === 'Rejected' && <Typography color="error">Rejected: {app.rejectionReason}</Typography>}
-                {app.status === 'Approved' && <Typography color="success">Approved</Typography>}
-              </TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -177,7 +238,8 @@ function AdminDashboardPage() {
   );
 
   const renderLoanTable = () => (
-    // ... existing code
+    // TODO: Implement Loan Table
+    <Typography sx={{mt: 2}}>Loan requests table will be here.</Typography>
   );
 
   const renderPayrollPanel = () => (
@@ -227,15 +289,75 @@ function AdminDashboardPage() {
       {mainTab === 0 && (
           <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
             <Tabs value={subTab} onChange={handleSubTabChange}>
-                {user?.role === 'Admin' && <Tab label="Pending Review" />}
-                {user?.role === 'SuperAdmin' && <Tab label="Pending Final Approval" />}
-                {user?.role === 'SuperAdmin' && <Tab label="Approved" />}
-                <Tab label="Rejected" />
+                {user?.role === 'Admin' && [<Tab key="pr" label="Pending Review" />, <Tab key="ar" label="Rejected" />]}
+                {user?.role === 'SuperAdmin' && [<Tab key="psa" label="Pending Final Approval" />, <Tab key="sa" label="Approved" />, <Tab key="sr" label="Rejected" />]}
             </Tabs>
           </Box>
       )}
 
       {renderContent()}
+
+      {/* Detail Dialog */}
+      <Dialog open={isDetailOpen} onClose={handleCloseDetail} fullWidth maxWidth="md">
+        <DialogTitle>Onboarding Application Details</DialogTitle>
+        <DialogContent>
+          {selectedApp && (
+            <Grid container spacing={2} sx={{ mt: 1 }}>
+              <Grid item xs={12}><Typography variant="h6">Personal Details</Typography></Grid>
+              <Grid item xs={6}><b>Name:</b> {selectedApp.personal.firstName} {selectedApp.personal.lastName}</Grid>
+              <Grid item xs={6}><b>DOB:</b> {new Date(selectedApp.personal.dateOfBirth).toLocaleDateString()}</Grid>
+
+              <Grid item xs={12}><Typography variant="h6" sx={{ mt: 2 }}>Contact Details</Typography></Grid>
+              <Grid item xs={6}><b>Email:</b> {selectedApp.contact.email}</Grid>
+              <Grid item xs={6}><b>Phone:</b> {selectedApp.contact.phone}</Grid>
+              <Grid item xs={12}><b>Address:</b> {selectedApp.contact.address}</Grid>
+
+              <Grid item xs={12}><Typography variant="h6" sx={{ mt: 2 }}>Bank Details</Typography></Grid>
+              <Grid item xs={6}><b>Account #:</b> {selectedApp.bank.accountNumber}</Grid>
+              <Grid item xs={6}><b>IFSC:</b> {selectedApp.bank.ifscCode}</Grid>
+
+              <Grid item xs={12}><Typography variant="h6" sx={{ mt: 2 }}>Emergency Contact</Typography></Grid>
+              <Grid item xs={4}><b>Name:</b> {selectedApp.emergency.name}</Grid>
+              <Grid item xs={4}><b>Relationship:</b> {selectedApp.emergency.relationship}</Grid>
+              <Grid item xs={4}><b>Phone:</b> {selectedApp.emergency.phone}</Grid>
+
+              <Grid item xs={12}><Typography variant="h6" sx={{ mt: 2 }}>Documents</Typography></Grid>
+              <Grid item xs={6}><Link href={`/${selectedApp.documents.idProof}`} target="_blank" rel="noopener">View ID Proof</Link></Grid>
+              <Grid item xs={6}><Link href={`/${selectedApp.documents.addressProof}`} target="_blank" rel="noopener">View Address Proof</Link></Grid>
+            </Grid>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDetail}>Close</Button>
+          {selectedApp?.status.startsWith('Pending') && (
+            <Box>
+              <Button variant="contained" color="error" onClick={handleOpenReject} sx={{ mr: 1 }}>Reject</Button>
+              <Button variant="contained" color="success" onClick={handleApproveOnboarding}>Approve</Button>
+            </Box>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      {/* Rejection Reason Dialog */}
+      <Dialog open={isRejectOpen} onClose={handleCloseReject}>
+        <DialogTitle>Reject Application</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Reason for Rejection"
+            type="text"
+            fullWidth
+            variant="standard"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseReject}>Cancel</Button>
+          <Button onClick={handleRejectOnboarding} color="error">Submit Rejection</Button>
+        </DialogActions>
+      </Dialog>
     </Container>
   );
 }

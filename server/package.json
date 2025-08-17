@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon index.js",
-    "test": "jest"
+    "test": "node --experimental-vm-modules -r dotenv/config node_modules/.bin/jest --runInBand"
   },
   "keywords": [],
   "author": "",

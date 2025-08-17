@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const crypto = require('crypto');
 const OnboardingApplication = require('../models/OnboardingApplication');
 const User = require('../models/User');
 const { auth, authorize } = require('../middleware/authMiddleware');
@@ -23,6 +24,27 @@ router.get(
     }
   }
 );
+
+// @route   GET /api/admin/applications/:id
+// @desc    Get a single onboarding application by ID
+// @access  Private (Admin, SuperAdmin)
+router.get(
+  '/applications/:id',
+  [auth, authorize(['Admin', 'SuperAdmin'])],
+  async (req, res) => {
+    try {
+      const application = await OnboardingApplication.findById(req.params.id);
+      if (!application) {
+        return res.status(404).json({ msg: 'Application not found' });
+      }
+      res.json(application);
+    } catch (err) {
+      console.error(err.message);
+      res.status(500).send('Server Error');
+    }
+  }
+);
+
 
 // @route   POST /api/admin/applications/:id/approve
 // @desc    Approve an onboarding application
@@ -48,7 +70,8 @@ router.post(
       if (userRole === 'SuperAdmin' && application.status === 'PendingSuperAdmin') {
         // Final approval: Create user account
         const { personal, contact } = application;
-        const tempPassword = 'Welcome123'; // In a real app, generate a random one
+        // Generate a secure, random temporary password
+        const tempPassword = crypto.randomBytes(8).toString('hex');
 
         const newUser = new User({
           name: `${personal.firstName} ${personal.lastName}`,
