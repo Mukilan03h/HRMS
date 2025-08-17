@@ -37,6 +37,7 @@ router.post('/register', async (req, res) => {
       user: {
         id: user.id,
         role: user.role,
+        passwordChangeRequired: user.passwordChangeRequired,
       },
     };
 
@@ -80,6 +81,7 @@ router.post('/login', async (req, res) => {
       user: {
         id: user.id,
         role: user.role,
+        passwordChangeRequired: user.passwordChangeRequired,
       },
     };
 
